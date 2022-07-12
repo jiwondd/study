@@ -83,18 +83,13 @@ hist=model.fit(x_train,y_train, validation_split=0.2, callbacks=[earlyStopping],
 
 
 #4. 평가, 예측
-loss=model.evaluate(x_test,y_test)
-print('loss:',loss)
+loss = model.evaluate(x_test, y_test)
+print('loss :', loss)
+y_predict = model.predict(x_test)
+from sklearn.metrics import r2_score
+r2 = r2_score(y_test, y_predict)
+print('r2스코어 :', r2)
 
-y_predict=model.predict(x_test)
-
-def RMSE(y_test,y_predict):
-    return np.sqrt(mean_squared_error(y_test,y_predict))
-
-rmse=RMSE(y_test,y_predict)
-print("RMSE",rmse)
-
-y_summit=model.predict(test_set)
 # print(y_summit)
 # print(y_summit.shape)
 
@@ -105,4 +100,6 @@ y_summit=model.predict(test_set)
 # loss: 1868.1153564453125
 # RMSE 43.22169862582993
 
+# loss : 1815.6109619140625
+# r2스코어 : 0.7266685377914577
 
