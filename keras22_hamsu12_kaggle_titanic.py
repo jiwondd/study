@@ -1,77 +1,219 @@
 import numpy as np
+import datetime as dt 
 import pandas as pd
-from tensorflow.python.keras.models import Sequential, Model
-from tensorflow.python.keras.layers import Dense, Input
+from collections import Counter
+import datetime as dt
+from sqlalchemy import asc
+from tensorflow.python.keras.models import Sequential , Model
+from tensorflow.python.keras.layers import Dense,Dropout,Input
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score,mean_squared_error
-from csv import reader
-from pandas import DataFrame
+from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from tensorflow.python.keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping
 from sklearn.preprocessing import MinMaxScaler,StandardScaler
 from sklearn.preprocessing import MaxAbsScaler,RobustScaler
 from tensorflow.keras.utils import to_categorical
 
 
 #.1 데이터
-path='./_data/kaggle_bike/'
+path='./_data/kaggle_house/'
 train_set=pd.read_csv(path+'train.csv')
 test_set=pd.read_csv(path+'test.csv') #예측할때 사용할거에요!!
+# print(train_set.shape) #(1460, 81)
+# print(test_set.shape) #(1459, 80)
+
+#numerical 수치형과 / categorial 범주형 피쳐 나누기
+numerical_feats=train_set.dtypes[train_set.dtypes !='object'].index
+# print('Number of Numerical features:',len(numerical_feats)) #38
+categorial_feats=train_set.dtypes[train_set.dtypes =='object'].index
+# print('Number of Categorial features:',len(categorial_feats)) #43
+
+# print(train_set[numerical_feats].columns)
+# print('*'*80)  # *로 줄 나눠라
+# print(train_set[categorial_feats].columns)
+
+#이상치 확인 / 제거
+def detect_outliers(df, n, features):
+    outlier_indics=[]
+    for col in features:
+        Q1=np.percentile(df[col],25) 
+        Q3=np.percentile(df[col],75)
+        IQR=Q3-Q1
+        
+        outlier_step=1.5*IQR
+        
+        outlier_list_col = df[(df[col] < Q1 - outlier_step) | (df[col] > Q3 + outlier_step)].index
+        outlier_indics.extend(outlier_list_col)
+    outlier_indics=Counter(outlier_indics)
+    multiple_outliers=list(k for k, v in outlier_indics.items() if v>n)
+    
+    return multiple_outliers
+outliers_to_drop=detect_outliers(train_set, 2, ['Id', 'MSSubClass', 'LotFrontage', 'LotArea', 'OverallQual',
+       'OverallCond', 'YearBuilt', 'YearRemodAdd', 'MasVnrArea', 'BsmtFinSF1', 
+       'BsmtFinSF2', 'BsmtUnfSF', 'TotalBsmtSF', '1stFlrSF', '2ndFlrSF',       
+       'LowQualFinSF', 'GrLivArea', 'BsmtFullBath', 'BsmtHalfBath', 'FullBath',
+       'HalfBath', 'BedroomAbvGr', 'KitchenAbvGr', 'TotRmsAbvGrd',
+       'Fireplaces', 'GarageYrBlt', 'GarageCars', 'GarageArea', 'WoodDeckSF',  
+       'OpenPorchSF', 'EnclosedPorch', '3SsnPorch', 'ScreenPorch', 'PoolArea', 
+       'MiscVal', 'MoSold', 'YrSold', 'SalePrice'])
+
+train_set.loc[outliers_to_drop]
+
+#이상치들 DROP하기
+train_set=train_set.drop(outliers_to_drop, axis=0).reset_index(drop=True)
+# print(train_set.shape) #(1326, 81)
 
 
-#데이트 타임 연/월/일/시 로 컬럼 나누기
-train_set['datetime']=pd.to_datetime(train_set['datetime']) #date time 열을 date time 속성으로 변경
-#세부 날짜별 정보를 보기 위해 날짜 데이터를 년도, 월, 일, 시간으로 나눠준다.(분,초는 모든값이 0 이므로 추가하지않는다.)
-train_set['year']=train_set['datetime'].dt.year
-train_set['month']=train_set['datetime'].dt.month
-train_set['day']=train_set['datetime'].dt.day
-train_set['hour']=train_set['datetime'].dt.hour
+missing=train_set.isnull().sum()
+missing=missing[missing>0]
+missing.sort_values(inplace=True)
 
-#날짜와 시간에 관련된 피쳐에는 datetime, holiday, workingday,year,month,day,hour 이 있다.
-#숫자형으로 나오는 holiday,workingday,month,hour만 쓰고 나머지 제거한다.
 
-train_set.drop(['datetime','day','year'],inplace=True,axis=1) #datetime, day, year 제거하기
+#내가 모타는...영역...헿 (블로거가 시각화 한 그래프 비교해서 일일이 나눈거임)
+num_strong_corr = ['SalePrice','OverallQual','TotalBsmtSF','GrLivArea','GarageCars',
+                   'FullBath','YearBuilt','YearRemodAdd']
 
-#month, hour은 범주형으로 변경해주기
-train_set['month']=train_set['month'].astype('category')
-train_set['hour']=train_set['hour'].astype('category')
+num_weak_corr = ['MSSubClass', 'LotFrontage', 'LotArea', 'OverallCond', 'MasVnrArea', 'BsmtFinSF1',
+                 'BsmtFinSF2', 'BsmtUnfSF', '1stFlrSF', '2ndFlrSF','LowQualFinSF', 'BsmtFullBath',
+                 'BsmtHalfBath', 'HalfBath', 'BedroomAbvGr', 'KitchenAbvGr', 'TotRmsAbvGrd',
+                 'Fireplaces', 'GarageYrBlt', 'GarageArea', 'WoodDeckSF','OpenPorchSF',
+                 'EnclosedPorch', '3SsnPorch', 'ScreenPorch', 'PoolArea', 'MiscVal', 'MoSold', 'YrSold']
 
-#season과 weather은 범주형 피쳐이다. 두 피쳐 모두 숫자로 표현되어 있으니 문자로 변환해준다.
-train_set=pd.get_dummies(train_set,columns=['season','weather'])
+catg_strong_corr = ['MSZoning', 'Neighborhood', 'Condition2', 'MasVnrType', 'ExterQual',
+                    'BsmtQual','CentralAir', 'Electrical', 'KitchenQual', 'SaleType']
 
-#casual과 registered는 test데이터에 존재하지 않기에 삭제한다.
-train_set.drop(['casual', 'registered'], inplace=True, axis=1)
-#temp와 atemp는 상관관계가 아주 높고 두 피쳐의 의미가 비슷하기 때문에 temp만 사용한다.
-train_set.drop('atemp',inplace=True,axis=1) #atemp 지우기
+catg_weak_corr = ['Street', 'Alley', 'LotShape', 'LandContour', 'Utilities', 'LotConfig', 
+                  'LandSlope', 'Condition1',  'BldgType', 'HouseStyle', 'RoofStyle', 
+                  'RoofMatl', 'Exterior1st', 'Exterior2nd', 'ExterCond', 'Foundation', 
+                  'BsmtCond', 'BsmtExposure', 'BsmtFinType1', 'BsmtFinType2', 'Heating', 
+                  'HeatingQC', 'Functional', 'FireplaceQu', 'GarageType', 'GarageFinish', 
+                  'GarageQual', 'GarageCond', 'PavedDrive', 'PoolQC', 'Fence', 'MiscFeature', 
+                  'SaleCondition' ]
 
-#위처럼 test_set도 적용하기
-test_set['datetime']=pd.to_datetime(test_set['datetime'])
+#결측데이터 처리하기#
+# "있다, 없다" 의 개념일 뿐 측정되지 않은 데이터의 의미가 아니다 
 
-test_set['month']=test_set['datetime'].dt.month
-test_set['hour']=test_set['datetime'].dt.hour
+cols_fillna=['PoolQC','MiscFeature','Alley','Fence','MasVnrType','FireplaceQu',
+               'GarageQual','GarageCond','GarageFinish','GarageType', 'Electrical',
+               'KitchenQual', 'SaleType', 'Functional', 'Exterior2nd', 'Exterior1st',
+               'BsmtExposure','BsmtCond','BsmtQual','BsmtFinType1','BsmtFinType2',
+               'MSZoning', 'Utilities']
 
-test_set['month']=test_set['month'].astype('category')
-test_set['hour']=test_set['hour'].astype('category')
+# 그냥 nan으로 두면 비어있다고 오해 할 수 있으니 없다는 의미의 none으로 바꿔준다.
+for col in cols_fillna : 
+    train_set[col].fillna('None', inplace=True)
+    test_set[col].fillna('None', inplace=True)
+    
+# 결측치의 처리정도를 확인해보자
+total = train_set.isnull().sum().sort_values(ascending=False)
+percent = (train_set.isnull().sum()/train_set.isnull().count()).sort_values(ascending=False)
+missing_data = pd.concat([total, percent], axis=1, keys=['Total','Percent'])
 
-test_set=pd.get_dummies(test_set,columns=['season','weather'])
+#남아있는 결측치는 수치형 변수이므로, 평균값으로 대체하자
+train_set.fillna(train_set.mean(), inplace=True)
+test_set.fillna(test_set.mean(), inplace=True)
 
-drop_feature = ['datetime', 'atemp']
-test_set.drop(drop_feature, inplace=True, axis=1)
+#다시한번 확인해보면 (0 0)으로 결측치가 다 처리 되어있는 예쁜모습
+total = train_set.isnull().sum().sort_values(ascending=False)
+percent = (train_set.isnull().sum()/train_set.isnull().count()).sort_values(ascending=False)
+missing_data = pd.concat([total, percent], axis=1, keys=['Total', 'Percent'])
+print(train_set.isnull().sum().sum(), test_set.isnull().sum().sum()) #(0 0)
 
-x = train_set.drop(['count'], axis=1)
-y=train_set['count']
+#'SalePrice'와의 상관관계가 약한 모든 변수를 삭제한다.
+id_test=test_set['Id']
+to_drop_num=num_weak_corr
+to_drop_catg=catg_weak_corr
 
-# print(train_set.shape) #(10886, 16)
-# print(test_set.shape) #(6493, 15)
-# print(x.shape) #(10886, 15)
-# print(y.shape) #(10886,)
+cols_to_drop=['Id']+to_drop_num+to_drop_catg
+
+for df in [train_set,test_set]:
+    df.drop(cols_to_drop,inplace=True,axis=1)
+
+#수치형 변환을 위해 Violinplot과 SalePrice_Log 평균을 참고하여 각 변수들의 범주들을 그룹화 합니다.
+#(뭔말인지 모름/ 블로그 카피함ㅎ)
+# 'MSZoning'
+msz_catg2 = ['RM', 'RH']
+msz_catg3 = ['RL', 'FV'] 
+
+
+# Neighborhood
+nbhd_catg2 = ['Blmngtn', 'ClearCr', 'CollgCr', 'Crawfor', 'Gilbert', 'NWAmes', 'Somerst', 'Timber', 'Veenker']
+nbhd_catg3 = ['NoRidge', 'NridgHt', 'StoneBr']
+
+# Condition2
+cond2_catg2 = ['Norm', 'RRAe']
+cond2_catg3 = ['PosA', 'PosN'] 
+
+# SaleType
+SlTy_catg1 = ['Oth']
+SlTy_catg3 = ['CWD']
+SlTy_catg4 = ['New', 'Con']
+
+#각 범주별로 수치형 변환을 실행합니다. (블로거따라함)
+for df in [train_set,test_set]:
+    df['MSZ_num'] = 1  
+    df.loc[(df['MSZoning'].isin(msz_catg2) ), 'MSZ_num'] = 2    
+    df.loc[(df['MSZoning'].isin(msz_catg3) ), 'MSZ_num'] = 3        
+    
+    df['NbHd_num'] = 1       
+    df.loc[(df['Neighborhood'].isin(nbhd_catg2) ), 'NbHd_num'] = 2    
+    df.loc[(df['Neighborhood'].isin(nbhd_catg3) ), 'NbHd_num'] = 3    
+
+    df['Cond2_num'] = 1       
+    df.loc[(df['Condition2'].isin(cond2_catg2) ), 'Cond2_num'] = 2    
+    df.loc[(df['Condition2'].isin(cond2_catg3) ), 'Cond2_num'] = 3    
+    
+    df['Mas_num'] = 1       
+    df.loc[(df['MasVnrType'] == 'Stone' ), 'Mas_num'] = 2 
+    
+    df['ExtQ_num'] = 1       
+    df.loc[(df['ExterQual'] == 'TA' ), 'ExtQ_num'] = 2     
+    df.loc[(df['ExterQual'] == 'Gd' ), 'ExtQ_num'] = 3     
+    df.loc[(df['ExterQual'] == 'Ex' ), 'ExtQ_num'] = 4     
+   
+    df['BsQ_num'] = 1          
+    df.loc[(df['BsmtQual'] == 'Gd' ), 'BsQ_num'] = 2     
+    df.loc[(df['BsmtQual'] == 'Ex' ), 'BsQ_num'] = 3     
+ 
+    df['CA_num'] = 0          
+    df.loc[(df['CentralAir'] == 'Y' ), 'CA_num'] = 1    
+
+    df['Elc_num'] = 1       
+    df.loc[(df['Electrical'] == 'SBrkr' ), 'Elc_num'] = 2 
+
+
+    df['KiQ_num'] = 1       
+    df.loc[(df['KitchenQual'] == 'TA' ), 'KiQ_num'] = 2     
+    df.loc[(df['KitchenQual'] == 'Gd' ), 'KiQ_num'] = 3     
+    df.loc[(df['KitchenQual'] == 'Ex' ), 'KiQ_num'] = 4      
+    
+    df['SlTy_num'] = 2       
+    df.loc[(df['SaleType'].isin(SlTy_catg1) ), 'SlTy_num'] = 1  
+    df.loc[(df['SaleType'].isin(SlTy_catg3) ), 'SlTy_num'] = 3  
+    df.loc[(df['SaleType'].isin(SlTy_catg4) ), 'SlTy_num'] = 4 
+
+#기존 범주형 변수와 새로 만들어진 수치형 변수 역시 유의하지 않은 것들 삭제하기
+train_set.drop(['MSZoning','Neighborhood' , 'Condition2', 'MasVnrType', 'ExterQual', 'BsmtQual','CentralAir', 'Electrical', 'KitchenQual', 'SaleType', 'Cond2_num', 'Mas_num', 'CA_num', 'Elc_num', 'SlTy_num'], axis = 1, inplace = True)
+test_set.drop(['MSZoning', 'Neighborhood' , 'Condition2', 'MasVnrType', 'ExterQual', 'BsmtQual','CentralAir', 'Electrical', 'KitchenQual', 'SaleType', 'Cond2_num', 'Mas_num', 'CA_num', 'Elc_num', 'SlTy_num'], axis = 1, inplace = True)
+
+####   x와 y정의하기   ####
+x = train_set.drop('SalePrice',axis=1)
+# print(x)
+# print(x.columns)
+# print(x.shape) #(1326, 12)
+
+y = train_set['SalePrice']
+# print(y)
+# print(y.shape) #(1326, )
 
 x_train,x_test,y_train,y_test=train_test_split(x,y,
-        train_size=0.8,shuffle=True, random_state=42)
+        train_size=0.8,shuffle=True, random_state=31)
 
 # scaler=MinMaxScaler()
-scaler=StandardScaler()
+# scaler=StandardScaler()
 # scaler=MaxAbsScaler()
-# scaler=RobustScaler()
+scaler=RobustScaler()
 scaler.fit(x_train)
 scaler.fit(test_set)
 x_train=scaler.transform(x_train)
@@ -79,16 +221,17 @@ x_test=scaler.transform(x_test)
 test_set=scaler.transform(test_set)
 
 #2. 모델구성
-# model=Sequential()
-# model.add(Dense(40,input_dim=15))
-# model.add(Dense(60,activation='ReLU'))
-# model.add(Dense(100,activation='ReLU'))
-# model.add(Dense(50,activation='ReLU'))
-# model.add(Dense(30,activation='ReLU'))
-# model.add(Dense(10,activation='ReLU'))
+model=Sequential()
+# model.add(Dense(36,input_dim=12,activation='ReLU'))
+# model.add(Dense(70,activation='ReLU'))
+# model.add(Dense(100,activation='PReLU'))
+# model.add(Dense(60,activation='PReLU'))
+# model.add(Dense(30,activation='PReLU'))
+# model.add(Dense(10,activation='linear'))
 # model.add(Dense(1))
 
-input1=Input(shape=(15,))
+
+input1=Input(shape=(12,))
 dense1=Dense(40)(input1)
 dense2=Dense(60,activation='relu')(dense1)
 dense3=Dense(100,activation='relu')(dense2)
@@ -99,10 +242,15 @@ output1=Dense(1,activation='relu')(dense6)
 model=Model(inputs=input1,outputs=output1)
 
 #3. 컴파일, 훈련
+# es = EarlyStopping(monitor='val_loss', mode='min')
+# mc = ModelCheckpoint('best_model.h5', monitor='val_loss', mode='min', save_best_only=True)
 earlyStopping=EarlyStopping(monitor='val_loss',patience=100,mode='min',verbose=1,restore_best_weights=True) #
 model.compile(loss='mse',optimizer="adam")
 hist=model.fit(x_train,y_train, validation_split=0.2, callbacks=[earlyStopping],
-               epochs=3000, batch_size=100, verbose=1)
+               epochs=1000, batch_size=100, verbose=1)
+
+# model.fit(x_train, y_train, nb_epoch=10, batch_size=10, verbose=2, validation_split=0.2)
+
 
 #4. 평가, 예측
 loss=model.evaluate(x_test,y_test)
@@ -116,28 +264,21 @@ def RMSE(y_test,y_predict):
 rmse=RMSE(y_test,y_predict)
 print("RMSE",rmse)
 
-y_summit=model.predict(test_set)
-# print(y_summit)
-# print(y_summit.shape)
+result = pd.read_csv(path + 'sample_submission.csv', index_col=0)
+#index_col=0 의 의미 : index col을 없애준다.
+
+y_summit = model.predict(test_set)
+#print(y_summit)
+#print(y_summit.shape) # (715,1)
+
 
 
 '''
-loss: 4995.0439453125
-RMSE 70.6756193924409 <-기존
+loss: 416948000.0
+RMSE 20419.303946466996
 
-loss: 5038.8125
-RMSE 70.9845964680797 <-MinMax
+loss: 405039744.0
+RMSE 20125.59995570042<-함수형
 
-loss: 4983.4833984375
-RMSE 70.59379586941036 <-Standard
-
-loss: 4774.572265625
-RMSE 69.09828351579266  <-MaxAbsScaler
-
-loss: 5107.462890625
-RMSE 71.46650641944817  <-RobustScaler
-
-loss: 5501.55615234375
-RMSE 74.1724732411385 <- 함수
 
 '''
