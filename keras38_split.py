@@ -3,10 +3,10 @@ a=np.array(range(1,11))
 size=5
 
 def split_x(dataset,size):
-    aaa=[]
+    aaa=[] #빈 리스트를 하나 만들고
     for i in range(len(dataset)-size+1):
         subset=dataset[i:(i+size)]
-        aaa.append(subset)
+        aaa.append(subset) #어펜드로 붙여준다. 
     return np.array(aaa)
 
 bbb=split_x(a,size)
