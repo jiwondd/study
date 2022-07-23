@@ -33,6 +33,8 @@ model=Sequential()
 model.add(Conv2D(filters=10,kernel_size=(4,4),
                  padding='same',
                  input_shape=(28,28,1)))
+
+# 참고해서 다시 공부해보기 ; https://codetorial.net/tensorflow/convolutional_neural_network.html
 model.add(MaxPooling2D())
 model.add(Conv2D(8,(3,3),
                  padding='valid', 
