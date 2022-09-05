@@ -1,5 +1,5 @@
 from tensorflow.python.keras.models import Sequential
-from tensorflow.python.keras.layers import Dense, Conv2D, Flatten,MaxPooling2D
+from tensorflow.python.keras.layers import Dense,Conv2D,Flatten,MaxPooling2D
 import numpy as np
 from keras.datasets import mnist
 from keras.utils import to_categorical
@@ -52,6 +52,7 @@ from tensorflow.python.keras.optimizer_v2 import rmsprop, nadam
 learning_rate = 0.001
 
 optlist = [adam.Adam, adadelta.Adadelta, adagrad.Adagrad, adamax.Adamax, rmsprop.RMSprop, nadam.Nadam]
+result=[]
 for optimizer in optlist:
     optimizer = optimizer(learning_rate=learning_rate)
     model.compile(loss='categorical_crossentropy', optimizer=optimizer)
@@ -59,13 +60,13 @@ for optimizer in optlist:
 
     # 4. evaluate, predict
     loss = model.evaluate(x_test, y_test)
-    y_pred = model.predict([x_test])
+    y_pred = model.predict(x_test)
     y_pred=np.argmax(y_pred,axis=1)
-    y_test=np.argmax(y_test,axis=1)
+    y_pred=to_categorical(y_pred)
     acc=accuracy_score(y_pred,y_test)
-
-    print('optimizer: ', optimizer.__class__.__name__, '/loss: ', round(loss, 4), '/lr: ', learning_rate, '/acc', acc)
-    
+    re='optimizer: ', optimizer.__class__.__name__, '/loss: ', round(loss, 4), '/lr: ', learning_rate, '/acc', acc
+    result.append(re)
+print(re)
 
 # loss :  0.23986844718456268
 # accuracy :  0.9788333177566528
