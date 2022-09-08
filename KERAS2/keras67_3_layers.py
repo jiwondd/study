@@ -39,7 +39,7 @@ model.add(Dense(1))
 # Non-trainable params: 8
 # _________________________________________________________________
 
-model.layers[2].trainable=False # dense_2 (Dense) 
+# model.layers[2].trainable=False # dense_2 (Dense) 
 # _________________________________________________________________
 #  Layer (type)                Output Shape              Param #
 # =================================================================
@@ -55,4 +55,4 @@ model.layers[2].trainable=False # dense_2 (Dense)
 # Non-trainable params: 3
 # _________________________________________________________________
 
-model.summary()
+# model.summary()
