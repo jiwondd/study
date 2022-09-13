@@ -28,27 +28,27 @@ model_154=autoencoder(hidden_layer_size=154)
 
 print('=======================노드1개=======================')
 model_01.compile(optimizer='adam',loss='binary_crossentropy')
-model_01.fit(x_train,x_train,epochs=10)
+model_01.fit(x_train,x_train,epochs=10,batch_size=128)
 
 print('=======================노드4개=======================')
 model_04.compile(optimizer='adam',loss='binary_crossentropy')
-model_04.fit(x_train,x_train,epochs=10)
+model_04.fit(x_train,x_train,epochs=10,batch_size=128)
 
 print('=======================노드16개=======================')
 model_16.compile(optimizer='adam',loss='binary_crossentropy')
-model_16.fit(x_train,x_train,epochs=10)
+model_16.fit(x_train,x_train,epochs=10,batch_size=128)
 
 print('=======================노드32개=======================')
 model_32.compile(optimizer='adam',loss='binary_crossentropy')
-model_32.fit(x_train,x_train,epochs=10)
+model_32.fit(x_train,x_train,epochs=10,batch_size=128)
 
 print('=======================노드64개=======================')
 model_64.compile(optimizer='adam',loss='binary_crossentropy')
-model_64.fit(x_train,x_train,epochs=10)
+model_64.fit(x_train,x_train,epochs=10,batch_size=128)
 
 print('=======================노드154개=======================')
 model_154.compile(optimizer='adam',loss='binary_crossentropy')
-model_154.fit(x_train,x_train,epochs=10)
+model_154.fit(x_train,x_train,epochs=10,batch_size=128)
 
 output_01=model_01.predict(x_test)
 output_04=model_04.predict(x_test)

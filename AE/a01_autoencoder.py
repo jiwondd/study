@@ -21,9 +21,9 @@ encoded=Dense(64,activation='relu')(input_img)
 
 decoded=Dense(784,activation='sigmoid')(encoded)
 # 위에서 /255 해줘서 0에서 1사이로 되어있기때문에 시그모이드 적용해줌(다른 데이터에서는 액티베이숀 다른거 넣어도 됨) 
-# decoded=Dense(784,activation='relu')(encoded) #액티베이션 렐루로 바꿔보자 / 그림이 많이 지저분해졌다.
-# decoded=Dense(784,activation='linear')(encoded)#액티베이션 리니어로 바꿔보자 / 
-# decoded=Dense(784,activation='tanh')(encoded)#액티베이션 탄(-1 ~ 1) 바꿔보자 / 
+decoded=Dense(784,activation='relu')(encoded)   #액티베이션 렐루로 바꿔보자 / 그림이 많이 지저분해졌다.
+decoded=Dense(784,activation='linear')(encoded) #액티베이션 리니어로 바꿔보자 / 왕별로
+decoded=Dense(784,activation='tanh')(encoded)   #액티베이션 탄(-1 ~ 1) 바꿔보자 / 걍 뭐
 autoencoder=Model(input_img,decoded)
 # autoencoder.summary()
 
@@ -31,6 +31,7 @@ autoencoder=Model(input_img,decoded)
 # 컴파일 훈련
 # autoencoder.compile(optimizer='adam',loss='binary_crossentropy')
 # autoencoder.compile(optimizer='adam',loss='mse')
+
 autoencoder.compile(optimizer='adam',loss='binary_crossentropy',metrics=['acc'])
 
 autoencoder.fit(x_train,x_train,epochs=30,batch_size=128,validation_split=0.2)
