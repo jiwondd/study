@@ -1,5 +1,4 @@
-# 파이토치에서는 텐서플로처럼 지피유에 따로 설치하지않아도 된다.
-
+import numpy as np
 import numpy as np
 import torch
 import torch.nn as nn #뉴럴네트워크
@@ -8,19 +7,15 @@ import torch.nn.functional as F
 
 USE_CUDA=torch.cuda.is_available() #쿠다에서 사용가능한 애들을 (대문자)유즈쿠다로 할게
 DEVICE=torch.device('cuda'if USE_CUDA else 'cpu') #쿠다를 쓸 수 있르면 쓰고 안되면 씨피유로 할게
-# print('torch:',torch.__version__,'사용DEVICE:',DEVICE)
-# torch: 1.12.1 사용DEVICE: cuda
-# 데이터와 모델에서만 정해주면 된다.
+#예측 : [[10,1.4,0]]
 
-# 1.데이터 
-x=np.array([[1,2,3,4,5,6,7,8,9,10],[1,1.1,1.2,1.3,1.4,1.5,1.6,1.5,1.4,1.3]]) #(2, 10)
-y=np.array([11,12,13,14,15,16,17,18,19,20]) #(10,)
-x_test=np.array([10,1.3]) #(2, )
-
-# x=x.transpose() #(10, 2)
-# x_test=x_test.transpose()
-
-# print(x.shape) 
+#1. 데이터
+x=np.array([[1,2,3,4,5,6,7,8,9,10],
+           [1,1,1,1,2,1.3,1.4,1.5,1.6,1.4],
+           [9,8,7,6,5,4,3,2,1,0]]
+           )
+y=np.array([11,12,13,14,15,16,17,1,19,20])
+x_test=np.array([10,1.4,0])
 
 # 텐서형태로 바꿔주기
 x=torch.FloatTensor(np.transpose(x)).to(DEVICE) 
@@ -28,15 +23,14 @@ y=torch.FloatTensor(y).unsqueeze(-1).to(DEVICE)
 x_test=torch.FloatTensor(np.transpose(x_test)).to(DEVICE)
 
 print(x.shape,y.shape,x_test.shape)
-# torch.Size([10, 2]) torch.Size([10, 1]) torch.Size([2])
+# torch.Size([10, 3]) torch.Size([10, 1]) torch.Size([3])
 
 x_test=(x_test-torch.mean(x))/torch.std(x)
 x=(x-torch.mean(x))/torch.std(x) # =StandardScaler
 
-print(x,x_test)
 
 # 2.모델구성
-model=nn.Sequential(nn.Linear(2,5),
+model=nn.Sequential(nn.Linear(3,5),
                     nn.Linear(5,3),
                     nn.Linear(3,4),
                     nn.ReLU(),
@@ -46,7 +40,7 @@ model=nn.Sequential(nn.Linear(2,5),
 
 # 3.컴파일 훈련
 criterion=nn.MSELoss()
-optimizer=optim.SGD(model.parameters(),lr=0.01) 
+optimizer=optim.SGD(model.parameters(),lr=0.001) 
 
 def train(model,criterion,optimizer,x,y):
     optimizer.zero_grad() 
@@ -85,7 +79,7 @@ def evaluate(model,criterion,x,y):
 loss2=evaluate(model,criterion,x,y)
 print('평가에 대한 로스(최종 loss):',loss2)
 results=model(x_test.to(DEVICE))
-print('예측값:',results.item())
+print(' 10, 1.4, 0 의 예측값:',results.item())
 
-# 평가에 대한 로스(최종 loss): 0.00030103957396931946
-# 예측값: 19.969762802124023
+# 평가에 대한 로스(최종 loss): 23.80859375
+#  10, 1.4 의 예측값: 16.079336166381836
