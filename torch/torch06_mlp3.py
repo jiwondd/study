@@ -31,7 +31,7 @@ model=nn.Sequential(nn.Linear(3,5),
                     nn.Linear(3,4),
                     nn.ReLU(),
                     nn.Linear(4,2),
-                    nn.Linear(2,1)).to(DEVICE)
+                    nn.Linear(2,2)).to(DEVICE)
 
 
 # 3.컴파일 훈련
@@ -75,7 +75,8 @@ def evaluate(model,criterion,x,y):
 loss2=evaluate(model,criterion,x,y)
 print('평가에 대한 로스(최종 loss):',loss2)
 results=model(x_test.to(DEVICE))
-print(' 10, 1.4, 0 의 예측값:',results.item())
+results=results.cpu().detach().numpy()
+print(' 10, 1.4, 0 의 예측값:',results)
 
-# 평가에 대한 로스(최종 loss): 5.771249771118164
-#  10, 1.4, 0 의 예측값: 5.949997901916504
+# 평가에 대한 로스(최종 loss): 0.004103008192032576
+#  10, 1.4, 0 의 예측값: [9.925701  1.9816513]

@@ -77,7 +77,8 @@ loss2=evaluate(model,criterion,x,y)
 print('평가에 대한 로스(최종 loss):',loss2)
 results=model(x_test.to(DEVICE))
 results=results.cpu().detach().numpy()
-
+# results=results.cpu().numpy() 디태치가 없을경우 이런 에러메세지가 뜬다.
+# RuntimeError: Can't call numpy() on Tensor that requires grad. Use tensor.detach().numpy() instead.
 print(' 10, 1.4, 0 의 예측값:',results)
 
 # 평가에 대한 로스(최종 loss): 0.009214025922119617
