@@ -5,10 +5,11 @@ import glob
 import os
 from sklearn.ensemble import RandomForestRegressor
 from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Bidirectional, Flatten, LSTM, Dropout,BatchNormalization
+from keras.layers import Input, Dense, GRU, Conv1D, Flatten,LSTM
 from keras.callbacks import EarlyStopping
-from sklearn.preprocessing import QuantileTransformer
-import time
+from sklearn.ensemble import RandomForestClassifier
+from catboost import CatBoostClassifier 
+from xgboost import XGBRegressor
 
 path = './_data/dacon_veggie/'
 all_input_list = sorted(glob.glob(path + 'train_input/*.csv'))
@@ -59,48 +60,31 @@ vali_data, val_target = aaa(val_input_list, val_target_list) #, False)
 
 test_input, test_target = aaa(test_input, test_target)
 
-print(train_data[0])
-print(len(train_data), len(label_data)) # 1607 16079
-print(len(train_data[0]))   # 1440
-print(label_data)   # 1440
-print(train_data.shape, label_data.shape)   # (1607, 1440, 37) (1607,)
-print(vali_data.shape) # (206, 1440, 37)
+# print(train_data[0])
+# print(len(train_data), len(label_data)) # 1607 16079
+# print(len(train_data[0]))   # 1440
+# print(label_data)   # 1440
+# print(train_data.shape, label_data.shape)   # (1607, 1440, 37) (1607,)
+# print(vali_data.shape) # (206, 1440, 37)
 
 train_data=train_data.reshape(1607,1440*37)
 vali_data=vali_data.reshape(206,1440*37)
 
-scaler=QuantileTransformer()
-scaler.fit(train_data)
-train_data=scaler.transform(train_data)
-vali_data=scaler.transform(vali_data)
-
-train_data=train_data.reshape(1607,1440,37)
-vali_data=vali_data.reshape(206,1440,37)
-
 # 2. 모델
-model = Sequential()
-model.add(Bidirectional(LSTM(256,return_sequences=True, activation='tanh',input_shape=(1440,37))))
-model.add(LSTM(128, activation='tanh'))
-model.add(Dense(64, activation='swish'))
-model.add(Dropout(0.2))
-model.add(Dense(32))
-model.add(Dense(16, activation='tanh'))
-model.add(Dropout(0.2))
-model.add(Dense(8))
-model.add(Dense(1))
+
+model=XGBRegressor()
+
 
 # 3. 컴파일, 훈련
-start=time.time()
-model.compile(loss='mse', optimizer='adam')
-Es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=100, restore_best_weights=True)
-model.fit(train_data,label_data, epochs=300, callbacks=[Es], validation_split=0.2)
-end=time.time()
+# model.compile(loss='mse', optimizer='adam')
+# Es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=100, restore_best_weights=True)
+# model.fit(train_data,label_data, epochs=2, callbacks=[Es], validation_split=0.1)
+model.fit(train_data,label_data,)
 
 # 4. 평가, 예측
-loss = model.evaluate(vali_data, val_target)
-print(loss)
+# loss = model.evaluate(vali_data, val_target)
+# print(loss)
 test_pred = model.predict(test_input)
-print('걸린시간:',end-start)
 # print(test_pred.shape) # (195, 1)
 # test1 = pd.read_csv(path+'test_target/TEST_01.csv', index_col=False) # 29
 # test1['rate'] = test_pred[:len(test1)][0]
@@ -145,9 +129,8 @@ for i in range(6):
 import zipfile
 filelist = ['TEST_01.csv','TEST_02.csv','TEST_03.csv','TEST_04.csv','TEST_05.csv', 'TEST_06.csv']
 os.chdir("./_data/dacon_veggie/test_target/")
-with zipfile.ZipFile("keras_sub_05.zip", 'w') as my_zip:
+with zipfile.ZipFile("keras_sub_no.zip", 'w') as my_zip:
     for i in filelist:
         my_zip.write(i)
     my_zip.close()
 
-# 튜닝한거임 걍 돌리면 됨
