@@ -1,33 +1,30 @@
-from unittest import loader
-from sklearn.datasets import fetch_covtype
+from sklearn.datasets import load_boston
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import time
 
 USE_CUDA=torch.cuda.is_available()
 DEVICE=torch.device('cuda:0' if USE_CUDA else 'cpu')
 print('torch:',torch.__version__,'사용DEVICE:',DEVICE)
 
 # 1. 데이터
-datasets=fetch_covtype()
+datasets=load_boston()
 x=datasets.data
 y=datasets['target']
 
 x=torch.FloatTensor(x)
-y=torch.LongTensor(y)
+y=torch.FloatTensor(y)
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-x_train,x_test,y_train,y_test=train_test_split(x,y,train_size=0.7,random_state=123,shuffle=True,stratify=y)
+x_train,x_test,y_train,y_test=train_test_split(x,y,train_size=0.7,random_state=123,shuffle=True)
 
 # print(x_train.shape,y_train.shape) torch.Size([398, 30]) torch.Size([398])
 
 x_train=torch.FloatTensor(x_train)
-y_train=torch.LongTensor(y_train).to(DEVICE)
+y_train=torch.FloatTensor(y_train).to(DEVICE)
 x_test=torch.FloatTensor(x_test)
-y_test=torch.LongTensor(y_test).to(DEVICE)
-# 인트가 길어지면 롱 / 플로트가 길어지면 더블
+y_test=torch.FloatTensor(y_test).to(DEVICE)
 
 scaler=StandardScaler()
 x_train=scaler.fit_transform(x_train)
@@ -36,25 +33,27 @@ x_test=scaler.transform(x_test)
 x_train=torch.FloatTensor(x_train).to(DEVICE)
 x_test=torch.FloatTensor(x_test).to(DEVICE)
 
-print(x_train.size()) 
-print(x_train.shape) #([406708, 54])
+print(x_train.size()) #torch.Size([354, 13])
+# print(x_train.shape) 
 
 from torch.utils.data import TensorDataset,DataLoader
 train_set=TensorDataset(x_train,y_train) #x,y 합치기
 test_set=TensorDataset(x_test,y_test) #x,y 합치기
-train_loader=DataLoader(train_set,batch_size=400,shuffle=True)
-test_loader=DataLoader(test_set,batch_size=400,shuffle=True)
+
+train_loader=DataLoader(train_set,batch_size=30,shuffle=True)
+test_loader=DataLoader(test_set,batch_size=30,shuffle=True)
 
 # 2. 모델
 # model=nn.Sequential(
-#     nn.Linear(54,64),
+#     nn.Linear(13,128),
+#     nn.ReLU(),
+#     nn.Linear(128,64),
 #     nn.ReLU(),
 #     nn.Linear(64,32),
 #     nn.ReLU(),
 #     nn.Linear(32,16),
 #     nn.ReLU(),
-#     nn.Linear(16,7),
-#     nn.Softmax()
+#     nn.Linear(16,1),
 #     ).to(DEVICE)
 
 class Model(nn.Module): #nn모듈을 상속시키겠다.
@@ -62,30 +61,29 @@ class Model(nn.Module): #nn모듈을 상속시키겠다.
         super().__init__() 
         # super(Model,self).__init__() 위에꺼랑 똑같은거임
         
-        self.linear1=nn.Linear(input_dim,64)
-        self.linear2=nn.Linear(64,32)
-        self.linear3=nn.Linear(32,16)
-        self.linear4=nn.Linear(16,output_dim)
-        self.relu=nn.ReLU()
-        self.softmax=nn.Softmax()
+        self.linear1=nn.Linear(input_dim,128)
+        self.linear2=nn.Linear(128,64)
+        self.linear3=nn.Linear(64,32)
+        self.linear4=nn.Linear(32,16)
+        self.linear5=nn.Linear(16,output_dim)
+        self.mish=nn.Mish()
         
     def forward(self,input_size): #포워드=순전파
         x=self.linear1(input_size)
-        x=self.relu(x)
+        x=self.mish(x)
         x=self.linear2(x)
-        x=self.relu(x)
+        x=self.mish(x)
         x=self.linear3(x)
-        x=self.relu(x)
+        x=self.mish(x)
         x=self.linear4(x)
-        x=self.softmax(x)
+        x=self.linear5(x)
         return x
         
-model=Model(54,8).to(DEVICE)
+model=Model(13,1).to(DEVICE)
 
 
 # 3. 컴파일 훈련
-start=time.time()
-criterion=nn.CrossEntropyLoss() #BCE=Binary Cross Entropy
+criterion=nn.MSELoss() #BCE=Binary Cross Entropy
 optimizer=optim.Adam(model.parameters(),lr=0.01)
 
 def train(model,criterion,optimizer,loader):
@@ -100,7 +98,7 @@ def train(model,criterion,optimizer,loader):
         total_loss += loss.item()
     return total_loss /len(loader)
 
-epochs=200
+epochs=500
 for epoch in range(1, epochs+1):
     loss=train(model,criterion,optimizer,train_loader)
     print('epoch:{},loss:{:8f}'.format(epoch,loss))
@@ -110,28 +108,28 @@ print("===============평가,예측===============")
 def evaluate(model,criterion,loader):
     model.eval()
     total_loss=0
-    
     for x_batch,y_batch in loader:
+        
         with torch.no_grad():
-            hypothesis=model(x_batch)
-            loss=criterion(hypothesis,y_batch)
+            y_pred=model(x_batch)
+            loss=criterion(y_pred,y_batch)
             total_loss += loss.item()
     return total_loss
     
 loss=evaluate(model,criterion,test_loader)
 print('loss:',loss)
-end=time.time()
-from sklearn.metrics import accuracy_score
+# loss: 6155.412109375
+
+from sklearn.metrics import r2_score
 y_pred=torch.argmax(model(x_test),axis=1)
-score=accuracy_score(y_test.cpu(),y_pred.cpu())
-print('accuracy_score:',score)
-print('걸린시간:',end-start)
+score=r2_score(y_test.cpu(),y_pred.cpu())
+print('r2_score:',score)
 
-# CUDA error: device-side assert triggered
-# CUDA kernel errors might be asynchronously reported at some other API 
-# call,so the stacktrace below might be incorrect.
-# For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+# loss: 81.66746520996094
+# r2_score: -5.9876589343211855
 
-# loss: 1294.449343919754
-# accuracy_score: 0.687402469249128
-# 걸린시간: 866.6580667495728
+# loss: 81.42826843261719
+# r2_score: -5.9876589343211855
+
+# loss: 459.34901428222656
+# r2_score: -5.9876589343211855
