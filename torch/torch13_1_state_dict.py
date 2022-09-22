@@ -151,3 +151,5 @@ print('accuracy_score:',score)
 path='./_save/'
 torch.save(model.state_dict(), path + 'torch13_state_dict.pt')
 
+# loss: 11.772751918546419
+# acc:0.9766
