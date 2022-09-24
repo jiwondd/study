@@ -47,9 +47,10 @@ test_set=TensorDataset(x_test,y_test) #x,y 합치기
 # print('=============train_set[0][1]=============')
 # print(train_set[0][1])
 # print(len(train_set)) #105
-
+ 
 train_loader=DataLoader(train_set,batch_size=20,shuffle=True)
 test_loader=DataLoader(test_set,batch_size=20,shuffle=True)
+# 배치사이즈 나누기
 
 # 2. 모델
 # model=nn.Sequential(
