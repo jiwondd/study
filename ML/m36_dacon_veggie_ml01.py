@@ -79,7 +79,7 @@ model=XGBRegressor()
 # model.compile(loss='mse', optimizer='adam')
 # Es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=100, restore_best_weights=True)
 # model.fit(train_data,label_data, epochs=2, callbacks=[Es], validation_split=0.1)
-model.fit(train_data,label_data,)
+model.fit(train_data,label_data)
 
 # 4. 평가, 예측
 # loss = model.evaluate(vali_data, val_target)

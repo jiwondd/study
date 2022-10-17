@@ -143,7 +143,8 @@ model = CatBoostClassifier(
     subsample = max(min(4.294621152299014, 1), 0), 
     reg_lambda= 2.9814132186209052,
     one_hot_max_size=int(round(1.499808335054402)),
-    bagging_temperature=6.827137620981638
+    bagging_temperature=6.827137620981638,
+    random_state=123
 )
 
 # 3. 훈련
@@ -157,9 +158,9 @@ print('model.score1:',result1)
 #5. 데이터 summit
 # model.fit(x,y)
 # result2=model.score(x,y)
-y_summit = model.predict(test_set)
-submission['ProdTaken'] = y_summit
-submission.to_csv('./_data/dacon_travel/sample_submission4.csv', index=True)
+y_submmit = model.predict(test_set)
+submission['ProdTaken'] = y_submmit
+# submission.to_csv('./_data/dacon_travel/sample_submission5.csv', index=True)
 
 # model.score: 0.8925831202046036
 # model.score: 0.8951406649616368 <-전처리 추가 (median)
@@ -175,4 +176,4 @@ submission.to_csv('./_data/dacon_travel/sample_submission4.csv', index=True)
 # model.score: 0.9053708439897699 <-러닝레이트 0.3
 # model.score: 0.9104859335038363 <-sampling_frequency='PerTreeLevel' / 0.9062233589
 # model.score1: 0.9130434782608695 <-러닝레이트까지 베이지안
-
+# model.score1: 0.9156010230179028 <-캣부스트 랜덤스테이트

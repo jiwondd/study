@@ -3,11 +3,11 @@
 from cProfile import label
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler,StandardScaler
+from sklearn.preprocessing import MinMaxScaler,StandardScaler, RobustScaler
 from sklearn.model_selection import KFold,StratifiedKFold
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.model_selection import GridSearchCV
+from sklearn.experimental import enable_halving_search_cv 
+from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 from xgboost import XGBClassifier, XGBRegressor
 from csv import reader
 from sklearn.preprocessing import LabelEncoder
@@ -15,6 +15,7 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.ensemble import RandomForestClassifier
+
 
 #.1 데이터
 path='./_data/dacon_travel/'
@@ -24,6 +25,9 @@ test_set=pd.read_csv(path+'test.csv',index_col=0) #예측할때 사용할거에�
 
 # print(train_set.shape) (1459, 10)
 # print(test_set.shape) (715, 9)
+train_set = train_set.drop(['NumberOfChildrenVisiting','NumberOfPersonVisiting','OwnCar','NumberOfTrips'], axis=1)
+test_set = test_set.drop(['NumberOfChildrenVisiting','NumberOfPersonVisiting','OwnCar','NumberOfTrips'], axis=1)
+train_set['TypeofContact'].fillna('N', inplace=True)
 
 label=train_set['ProdTaken']
 total_set=pd.concat((train_set,test_set)).reset_index(drop=True)
@@ -36,17 +40,12 @@ for c in cols:
     lbl = LabelEncoder() 
     lbl.fit(list(total_set[c].values)) 
     total_set[c] = lbl.transform(list(total_set[c].values))
-# print(total_set.info())
-# print(total_set.isnull().sum())
 
-total_set.loc[total_set['Age'] != total_set['Age'], 'Age'] = total_set['Age'].median()
-total_set.loc[total_set['DurationOfPitch'] != total_set['DurationOfPitch'], 'DurationOfPitch'] = total_set['DurationOfPitch'].median()
-total_set.loc[total_set['NumberOfFollowups'] != total_set['NumberOfFollowups'], 'NumberOfFollowups'] = total_set['NumberOfFollowups'].median()
-total_set.loc[total_set['PreferredPropertyStar'] != total_set['PreferredPropertyStar'], 'PreferredPropertyStar'] = total_set['PreferredPropertyStar'].median()
-total_set.loc[total_set['NumberOfTrips'] != total_set['NumberOfTrips'], 'NumberOfTrips'] = total_set['NumberOfTrips'].median()
-total_set.loc[total_set['NumberOfChildrenVisiting'] != total_set['NumberOfChildrenVisiting'], 'NumberOfChildrenVisiting'] = total_set['NumberOfChildrenVisiting'].median()
-total_set.loc[total_set['MonthlyIncome'] != total_set['MonthlyIncome'], 'MonthlyIncome'] = total_set['MonthlyIncome'].median()
-print(total_set.isnull().sum())
+print(total_set.head())
+
+imputer=IterativeImputer(random_state=42)
+imputer.fit(total_set)
+total_set=imputer.transform(total_set)
 
 train_set=total_set[:len(train_set)]
 test_set=total_set[len(train_set):]
@@ -54,52 +53,38 @@ test_set=total_set[len(train_set):]
 x=train_set
 y=label
 
-lda=LinearDiscriminantAnalysis() 
-lda.fit(x,y)
-x=lda.transform(x)
+# x=pd.DataFrame(x)
+# print(x.isnull().sum()) 
+# 임퓨터 제대로 들어갔는지 보려고 넘파이를 데이터프레임으로 잠깐 바꿔봄
 
-print(x.shape)
-print(x)
-scaler=StandardScaler()
-scaler.fit(x)
-x=scaler.transform(x)
+scaler=MinMaxScaler()
+scaler.fit(train_set)
+x['Age']=scaler.fit_transform(x['Age'])
 
-x_train, x_test, y_train, y_test=train_test_split(x,y,shuffle=True,random_state=42,train_size=0.8,stratify=y)
+x_train, x_test, y_train, y_test=train_test_split(x,y,shuffle=True,random_state=123,train_size=0.9,stratify=y)
 
-kFold=StratifiedKFold(n_splits=5, shuffle=True,random_state=42)
+kFold=StratifiedKFold(n_splits=5, shuffle=True,random_state=123)
 
-parameters1=[{'n_estimator':[100,200,300],'learnig_rate':[0.1,0.2,0.3,0.01],'max_depth':[None,2,3,4,5,6],'min_child_weight':[0,0.01,0.001,0.1,0.5,1]},
-             {'n_estimator':[100,200,300],'learnig_rate':[0.1,0.2,0.3,0.01],'max_depth':[None,2,3,4,5,6],'min_child_weight':[0,0.01,0.001,0.1,0.5,1]},
-             {'n_estimator':[100,200,300],'learnig_rate':[0.1,0.2,0.3,0.01],'max_depth':[None,2,3,4,5,6],'min_child_weight':[0,0.01,0.001,0.1,0.5,1],
-              'reg_alpha':[0.1,0,0.001,0.3,1,2,10],'reg_lambda':[0.1,0,0.001,0.3,1,2,10]}]
-
-# parameters2=[
-#     {'n_estimators':[100,200,300],'max_depth':[None,2,3,4,5]},
-#     {'min_samples_leaf':[3,5,7,10],'min_samples_split':[2,3,5,10],
-#      'n_jobs':[-1,2,4]},
-# ]
 
 # 2. 모델구성
-# Rf=RandomForestClassifier(random_state=123)
-xgb=XGBClassifier(random_state=123,tree_method='gpu_hist',predictor='gpu_predictor',gpu_id=0)
-model=GridSearchCV(xgb,parameters1,cv=kFold,n_jobs=8)
-
+model=RandomForestClassifier(random_state=123)
 # 3. 훈련
 model.fit(x_train,y_train)
 
 # 4. 평가, 예측
 result=model.score(x_test,y_test)
 print('model.score:',result) 
+# best_params=model.best_params_
+# print('best_params : ', best_params )
 
 #5. 데이터 summit
-y_summit = model.predict(test_set)
-y_summit = y_summit.flatten()                 
-y_summit = np.where(y_summit > 0.55, 1 , 0)   
-
-submission['ProdTaken'] = y_summit
-print(submission)
-submission.to_csv('./_data/dacon_travel/sample_submission.csv', index=True)
+# y_summit = model.predict(test_set)
+# submission['ProdTaken'] = y_summit
+# print(submission)
+# submission.to_csv('./_data/dacon_travel/sample_submission.csv', index=True)
 
 
 # model.score: 0.8695652173913043 RF
 # model.score: 0.8414322250639387 xgb
+# model.score: 0.8877551020408163
+# model.score: 0.8877551020408163

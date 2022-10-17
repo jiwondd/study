@@ -71,7 +71,7 @@ x_train, x_test, y_train, y_test=train_test_split(x,y,shuffle=True,random_state=
 
 kFold=StratifiedKFold(n_splits=5, shuffle=True,random_state=123)
 
-prameters={'n_estimator':[100,200,300,],'learnig_rate':[0.1,0.2,0.01,0.001]},{'max_depth':[None,2,3,4,5],'gamma':[0,1,2,3]},{'reg_alpha':[0.1,0,0.001,1],'reg_lambda':[0.1,0,0.001,1]}
+prameters={'n_estimators':[100,200,300,],'learning_rate':[0.1,0.2,0.01,0.001]},{'max_depth':[None,2,3,4,5],'gamma':[0,1,2,3]},{'reg_alpha':[0.1,0,0.001,1],'reg_lambda':[0.1,0,0.001,1]}
 
 # 2. 모델구성
 xgb=XGBClassifier(random_state=123,tree_method='gpu_hist',predictor='gpu_predictor',gpu_id=0)
